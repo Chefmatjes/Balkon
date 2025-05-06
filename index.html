@@ -3,41 +3,439 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Balkon Ansicht</title>
+    <title>Balkon Visualisierung</title>
     <style>
-        body { margin: 0; overflow: hidden; }
-        canvas { display: block; }
-        #info {
-            position: absolute;
-            top: 10px;
-            width: 100%;
-            text-align: center;
-            color: white;
+        body {
+            margin: 0;
+            overflow: hidden;
             font-family: Arial, sans-serif;
-            pointer-events: none;
+        }
+        canvas {
+            display: block;
         }
         #controls {
             position: absolute;
-            bottom: 20px;
-            left: 20px;
-            color: white;
-            background-color: rgba(0,0,0,0.5);
+            top: 10px;
+            left: 10px;
+            background-color: rgba(255, 255, 255, 0.8);
             padding: 10px;
             border-radius: 5px;
-            font-family: Arial, sans-serif;
+        }
+        #info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 5px;
         }
     </style>
 </head>
 <body>
-    <div id="info">3D Balkon Ansicht</div>
     <div id="controls">
-        <p>Steuerung:</p>
-        <p>Linke Maustaste: Drehen</p>
-        <p>Rechte Maustaste: Verschieben</p>
-        <p>Scrollrad: Zoom</p>
+        <button id="standardModel">Standard Modell</button>
+        <button id="enhancedModel">Golden Oak Modell</button>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <div id="info">
+        <p>Balkon-Modell basierend auf FreeCAD-Implementierung</p>
+        <p id="modelStats"></p>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
     <script src="balkon.js"></script>
+    <script>
+        // Renderer Setup
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        // Scene
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB); // Himmelblau
+
+        // Camera
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(5, 5, 5);
+        camera.lookAt(0, 0, 0);
+
+        // Controls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.25;
+
+        // Lights
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(5, 10, 7);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
+
+        // Ground
+        const groundGeometry = new THREE.PlaneGeometry(20, 20);
+        const groundMaterial = new THREE.MeshStandardMaterial({
+            color: 0x7CFC00,
+            side: THREE.DoubleSide,
+            roughness: 0.8
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Helper axes
+        const axesHelper = new THREE.AxesHelper(5);
+        scene.add(axesHelper);
+
+        // Create Golden Oak texture
+        function createGoldenOakTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 1024;
+            const ctx = canvas.getContext('2d');
+            
+            // Base gradient
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#D8A449');
+            gradient.addColorStop(0.3, '#D2961B');
+            gradient.addColorStop(0.7, '#C08A19');
+            gradient.addColorStop(1, '#B37F17');
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Wood grain
+            for (let i = 0; i < 80; i++) {
+                const y = Math.random() * canvas.height;
+                const width = 1 + Math.random() * 3;
+                const opacity = 0.1 + Math.random() * 0.2;
+                
+                ctx.strokeStyle = `rgba(150, 100, 50, ${opacity})`;
+                ctx.lineWidth = width;
+                
+                const amplitude = 5 + Math.random() * 15;
+                const frequency = 0.005 + Math.random() * 0.01;
+                const phase = Math.random() * Math.PI * 2;
+                
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                
+                for (let x = 0; x < canvas.width; x += 2) {
+                    ctx.lineTo(x, y + Math.sin(x * frequency + phase) * amplitude);
+                }
+                
+                ctx.stroke();
+            }
+            
+            // Darker grain lines
+            for (let i = 0; i < 30; i++) {
+                const y = Math.random() * canvas.height;
+                const width = 0.5 + Math.random() * 2;
+                
+                ctx.strokeStyle = 'rgba(100, 60, 20, 0.4)';
+                ctx.lineWidth = width;
+                
+                const amplitude = 2 + Math.random() * 8;
+                const frequency = 0.01 + Math.random() * 0.02;
+                
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                
+                for (let x = 0; x < canvas.width; x += 1) {
+                    ctx.lineTo(x, y + Math.sin(x * frequency) * amplitude);
+                }
+                
+                ctx.stroke();
+            }
+            
+            // Knots
+            for (let i = 0; i < 8; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                const radius = 5 + Math.random() * 15;
+                
+                const knotGradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+                knotGradient.addColorStop(0, '#8B5A00');
+                knotGradient.addColorStop(0.5, '#6B4400');
+                knotGradient.addColorStop(1, '#9A6600');
+                
+                ctx.fillStyle = knotGradient;
+                ctx.beginPath();
+                ctx.arc(x, y, radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Rings around knots
+                for (let j = 0; j < 3; j++) {
+                    const ringRadius = radius * (1.2 + j * 0.3);
+                    ctx.strokeStyle = `rgba(160, 120, 60, ${0.3 - j * 0.1})`;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.arc(x, y, ringRadius, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+            
+            // Fine texture overlay
+            ctx.fillStyle = 'rgba(210, 180, 140, 0.1)';
+            for (let i = 0; i < 5000; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                const size = 0.5 + Math.random() * 1.5;
+                
+                ctx.fillRect(x, y, size, size);
+            }
+            
+            // Vertical structure
+            for (let x = 0; x < canvas.width; x += 4) {
+                ctx.strokeStyle = 'rgba(180, 140, 80, 0.1)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                
+                for (let y = 0; y < canvas.height; y += 2) {
+                    const offset = Math.random() * 2 - 1;
+                    ctx.lineTo(x + offset, y);
+                }
+                
+                ctx.stroke();
+            }
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(1, 3);
+            
+            return texture;
+        }
+
+        const goldenOakTexture = createGoldenOakTexture();
+
+        // Clear existing model
+        function clearModel() {
+            scene.children.forEach(child => {
+                if (child !== ambientLight && 
+                    child !== directionalLight && 
+                    child !== ground && 
+                    child !== axesHelper) {
+                    scene.remove(child);
+                }
+            });
+        }
+
+        // Render function
+        function renderModel(model) {
+            clearModel();
+            
+            // Floor
+            const floorGeometry = new THREE.BoxGeometry(
+                model.dimensions.width, 
+                model.dimensions.floorThickness, 
+                model.dimensions.depth
+            );
+            const floorMaterial = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(
+                    model.floor.color.r/255, 
+                    model.floor.color.g/255, 
+                    model.floor.color.b/255
+                ),
+                roughness: 0.5
+            });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.position.set(0, model.dimensions.height - model.dimensions.floorThickness/2, 0);
+            floor.castShadow = true;
+            floor.receiveShadow = true;
+            scene.add(floor);
+            
+            // Posts
+            model.posts.forEach(post => {
+                const postGeometry = new THREE.CylinderGeometry(0.05, 0.05, post.height, 16);
+                const postMaterial = new THREE.MeshStandardMaterial({
+                    color: new THREE.Color(
+                        postenFarbe.r/255, 
+                        postenFarbe.g/255, 
+                        postenFarbe.b/255
+                    ),
+                    metalness: 0.5,
+                    roughness: 0.2
+                });
+                const postMesh = new THREE.Mesh(postGeometry, postMaterial);
+                postMesh.position.set(post.x, post.z + post.height/2, post.y);
+                postMesh.castShadow = true;
+                scene.add(postMesh);
+            });
+            
+            // Support posts
+            model.supportPosts.forEach(post => {
+                const supportGeometry = new THREE.CylinderGeometry(post.radius, post.radius, post.height, 16);
+                const supportMaterial = new THREE.MeshStandardMaterial({
+                    color: new THREE.Color(0.3, 0.3, 0.3),
+                    metalness: 0.7,
+                    roughness: 0.2
+                });
+                const supportMesh = new THREE.Mesh(supportGeometry, supportMaterial);
+                supportMesh.position.set(post.x, post.height/2, post.y);
+                supportMesh.castShadow = true;
+                scene.add(supportMesh);
+            });
+            
+            // Horizontal supports
+            model.horizontalSupports.forEach(support => {
+                const supportGeometry = new THREE.BoxGeometry(
+                    support.width, 
+                    support.height, 
+                    support.depth
+                );
+                const supportMaterial = new THREE.MeshStandardMaterial({
+                    color: new THREE.Color(
+                        haltebrettFarbe.r/255, 
+                        haltebrettFarbe.g/255, 
+                        haltebrettFarbe.b/255
+                    ),
+                    roughness: 0.5
+                });
+                const supportMesh = new THREE.Mesh(supportGeometry, supportMaterial);
+                supportMesh.position.set(support.x, support.z, support.y);
+                supportMesh.castShadow = true;
+                scene.add(supportMesh);
+            });
+            
+            // Handrails
+            model.handrails.forEach(rail => {
+                let length;
+                if (rail.orientation === 'horizontal') {
+                    length = Math.abs(rail.x2 - rail.x1);
+                } else {
+                    length = Math.abs(rail.y2 - rail.y1);
+                }
+                
+                const railGeometry = new THREE.CylinderGeometry(0.03, 0.03, length, 16);
+                const railMaterial = new THREE.MeshStandardMaterial({
+                    color: new THREE.Color(
+                        haltebrettFarbe.r/255, 
+                        haltebrettFarbe.g/255, 
+                        haltebrettFarbe.b/255
+                    ),
+                    metalness: 0.7,
+                    roughness: 0.2
+                });
+                
+                const railMesh = new THREE.Mesh(railGeometry, railMaterial);
+                
+                if (rail.orientation === 'horizontal') {
+                    railMesh.rotation.z = Math.PI/2;
+                    railMesh.position.set((rail.x1 + rail.x2)/2, rail.z1, rail.y1);
+                } else {
+                    railMesh.rotation.x = Math.PI/2;
+                    railMesh.position.set(rail.x1, rail.z1, (rail.y1 + rail.y2)/2);
+                }
+                
+                railMesh.castShadow = true;
+                scene.add(railMesh);
+            });
+            
+            // Vertical boards - front
+            createVerticalBoards(model.railingBoards.front, true, model.dimensions.height);
+            
+            // Left side boards
+            createVerticalBoards(model.railingBoards.leftSide, false, model.dimensions.height, -model.dimensions.width/2);
+            
+            // Right side boards
+            createVerticalBoards(model.railingBoards.rightSide, false, model.dimensions.height, model.dimensions.width/2);
+            
+            // Update stats
+            updateModelStats(model);
+        }
+        
+        // Create vertical boards for a railing section
+        function createVerticalBoards(railingData, isXAxis, baseHeight, fixedPosition = null) {
+            const offset = brettDicke * 3;
+            
+            railingData.boardPositions.forEach(board => {
+                const isGoldenOak = board.type === "GO";
+                const material = new THREE.MeshStandardMaterial({
+                    color: new THREE.Color(
+                        board.color.r/255, 
+                        board.color.g/255, 
+                        board.color.b/255
+                    ),
+                    roughness: isGoldenOak ? 0.7 : 0.6,
+                    metalness: isGoldenOak ? 0.3 : 0.4
+                });
+                
+                // Add texture for Golden Oak boards
+                if (isGoldenOak) {
+                    material.map = goldenOakTexture;
+                }
+                
+                const boardGeometry = new THREE.BoxGeometry(
+                    isXAxis ? board.width : brettDicke,
+                    gelaenderHoehe,
+                    isXAxis ? brettDicke : board.width
+                );
+                
+                const boardMesh = new THREE.Mesh(boardGeometry, material);
+                
+                if (isXAxis) {
+                    boardMesh.position.set(
+                        board.position + board.width/2, 
+                        baseHeight + gelaenderHoehe/2, 
+                        fixedPosition || balkonTiefe/2 + offset
+                    );
+                } else {
+                    boardMesh.position.set(
+                        fixedPosition + offset, 
+                        baseHeight + gelaenderHoehe/2, 
+                        board.position + board.width/2
+                    );
+                }
+                
+                boardMesh.castShadow = true;
+                scene.add(boardMesh);
+            });
+        }
+        
+        // Update model statistics display
+        function updateModelStats(model) {
+            const front = model.railingBoards.front;
+            const stats = document.getElementById('modelStats');
+            
+            stats.innerHTML = `
+                Modell: ${model.name}<br>
+                Maße: ${model.dimensions.width}m × ${model.dimensions.depth}m × ${model.dimensions.height}m<br>
+                Bretter vorne: ${front.totalBoards} (${front.goldenOakCount} Golden Oak, ${front.wildgruenCount} Wildgrün)<br>
+                Abstand zwischen Brettern: ${Math.round(front.gap * 100)/100}m
+            `;
+        }
+        
+        // Event handlers for buttons
+        document.getElementById('standardModel').addEventListener('click', () => {
+            renderModel(standardModel);
+        });
+        
+        document.getElementById('enhancedModel').addEventListener('click', () => {
+            renderModel(enhancedModel);
+        });
+        
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        // Window resize handler
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        // Initial render with standard model
+        renderModel(standardModel);
+        animate();
+    </script>
 </body>
 </html> 
